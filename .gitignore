@@ -24,3 +24,6 @@ desktop.ini
 dist/
 build/
 *.egg-info/
+
+*.db
+machinedb.db
