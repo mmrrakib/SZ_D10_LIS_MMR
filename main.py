@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QFrame, QStackedWidget, QDateEdit, QGridLayout, QRadioButton, QHBoxLayout,
     QComboBox, QTextBrowser, QStyle
 )
-from PyQt6.QtGui import QAction, QTextDocument, QIcon, QFont
+from PyQt6.QtGui import QAction, QTextDocument, QIcon
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from PyQt6.QtCore import Qt, QDateTime, QThread, pyqtSignal, QDate
 from sqlalchemy import text, inspect
@@ -16,6 +16,7 @@ from sqlalchemy.orm import sessionmaker # Import text and inspect for migration
 
 from astm_parser import parse_astm
 from reports import ReportPreviewWindow, ReportsViewWidget
+from log_details import logger
 from db import (
     SessionLocal, engine, Base, get_machine_config,
     update_single_machine_config, insert_result_details,
@@ -1233,7 +1234,6 @@ class FinalizationViewWidget(QWidget):
         
 class ServerThread(QThread):
     data_received = pyqtSignal(str)
-    log_message = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -1258,14 +1258,14 @@ class ServerThread(QThread):
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.server_socket.bind((self.host, self.port))
             self.server_socket.listen(1)
-            self.log_message.emit(f"Server listening on {self.host}:{self.port}")
+            logger.info(f"Server listening on {self.host}:{self.port}")
 
             while self.running:
                 try:
                     self.server_socket.settimeout(0.5)
                     conn, addr = self.server_socket.accept()
                     with conn:
-                        self.log_message.emit(f"Connected by {addr}")
+                        logger.info(f"Connected by {addr}")
                         data = conn.recv(4096)
                         if data:
                             stx = data.find(b'\x02')
@@ -1274,18 +1274,18 @@ class ServerThread(QThread):
                                 astm_message = data[stx+1:etx].decode('utf-8')
                                 self.data_received.emit(astm_message)
                             else:
-                                self.log_message.emit("Received malformed ASTM message.")
+                                logger.info("Received malformed ASTM message.")
                 except socket.timeout:
                     continue
                 except Exception as e:
                     if self.running:
-                        self.log_message.emit(f"Error during connection: {e}")
+                        logger.error(f"Error during connection: {e}")
         except Exception as e:
-            self.log_message.emit(f"Server error: {e}")
+            logger.error(f"Server error: {e}")
         finally:
             if self.server_socket:
                 self.server_socket.close()
-            self.log_message.emit("Server stopped.")
+            logger.info("Server stopped.")
 
     def stop(self):
         self.running = False
@@ -1295,7 +1295,7 @@ class ServerThread(QThread):
                     s.settimeout(1)
                     s.connect((self.host, self.port))
             except Exception as e:
-                self.log_message.emit(f"Error while stopping server: {e}")
+                logger.error(f"Error while stopping server: {e}")
         self.wait()
 
 class MachineConfigWindow(QDialog):
@@ -1393,7 +1393,6 @@ class MainWindow(QMainWindow):
 
         self.server_thread = ServerThread()
         self.server_thread.data_received.connect(self.handle_astm_data)
-        self.server_thread.log_message.connect(self.log_message)
 
     def get_icon_for_title(self, title):
         style = self.style()
@@ -1578,7 +1577,7 @@ class MainWindow(QMainWindow):
         self.server_thread.stop()
 
     def handle_astm_data(self, data):
-        self.log_message(f"Received ASTM data: {data}")
+        logger.info(f"Received ASTM data: {data}")
         parsed_data = parse_astm(data)
         if parsed_data:
             db = SessionLocal()
@@ -1593,20 +1592,17 @@ class MainWindow(QMainWindow):
                     reference_range=parsed_data.get('ref_range', ''),
                     date_time=QDateTime.fromString(date_time_str, 'yyyyMMddhhmmss').toPyDateTime()
                 )
-                self.log_message("Result details saved to database.")
+                logger.info("Result details saved to database.")
                 
                 display_date_time = QDateTime(db_result.date_time).toString('yyyy-MM-dd hh:mm:ss')
                 self.add_data_to_table(db_result, display_date_time, parsed_data.get('status', ''))
             except Exception as e:
-                self.log_message(f"Error processing ASTM data: {e}")
+                logger.error(f"Error processing ASTM data: {e}")
             finally:
                 db.close()
 
-    def log_message(self, message):
-        self.status_box.append(f"{QDateTime.currentDateTime().toString('yyyy-MM-dd hh:mm:ss')} - {message}")
-
     def handle_machine_config_saved(self):
-        self.log_message("Machine configuration updated. Restarting server...")
+        logger.info("Machine configuration updated. Restarting server...")
         if self.server_thread.isRunning():
             self.stop_communication()
             self.start_communication()

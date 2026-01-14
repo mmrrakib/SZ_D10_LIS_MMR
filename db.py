@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime, Foreign
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship, joinedload
 from sqlalchemy.sql import distinct
 import datetime
+from log_details import logger # Import the logger
 
 DATABASE_URL = "sqlite:///machinedb.db"
 
@@ -92,6 +93,7 @@ def insert_result_details(db_session, sample_id, test_name, test_result, unit, r
     db_session.add(db_result)
     db_session.commit()
     db_session.refresh(db_result)
+    logger.info(f"Inserted Result: Sample ID='{db_result.sample_id}', Test Name='{db_result.test_name}', Result='{db_result.test_result}', Unit='{db_result.unit}', Ref Range='{db_result.reference_range}', DateTime='{db_result.date_time}'")
     return db_result
 
 def get_machine_config(db_session):

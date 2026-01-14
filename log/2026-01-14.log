@@ -1,0 +1,5 @@
+2026-01-14 17:20:39,027 - INFO - Server listening on localhost:6000
+2026-01-14 17:20:52,171 - INFO - Connected by ('127.0.0.1', 57392)
+2026-01-14 17:20:52,171 - INFO - Received ASTM data: H|\^&|||LIS-Simulator|||||||LIS||P|1P|1|12345O|1|S001||^^^Glucose|RR|1|^^^Glucose|10.5|mg/dL|4.0-6.0|N||F|||20260114172052L|1|N
+2026-01-14 17:20:52,196 - INFO - Inserted Result: Sample ID='S001', Test Name='Glucose', Result='10.5', Unit='mg/dL', Ref Range='4.0-6.0', DateTime='2026-01-14 17:20:52'
+2026-01-14 17:20:52,196 - INFO - Result details saved to database.

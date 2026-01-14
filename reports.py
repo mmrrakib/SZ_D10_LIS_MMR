@@ -141,7 +141,7 @@ class ReportPreviewWindow(QDialog):
         </style>
         </head>
         <body>
-            <div class="report-title">Hemoglobin Electrophoresis Report</div>
+                        <div class="report-title">Lab Report</div>
 
             <div class="box">
                 <table class="patient-table">
@@ -193,19 +193,23 @@ class ReportPreviewWindow(QDialog):
             </div>
 
             <!-- FOOTER: VERIFIED & FINALIZED SIGNATURES -->
-            <div style="display:flex; justify-content: space-between; margin-top:80px;">
-                <div style="text-align: center;">
-                    <div style="border-top:1px solid #000; width:200px; margin: 0 auto;"></div>
-                    <p><strong>Verified By</strong></p>
-                    <p>{verified_by.name if verified_by else 'N/A'}</p>
-                    <p>{verified_by.doctor_id if verified_by else ''}</p>
-                </div>
-                <div style="text-align: center;">
-                    <div style="border-top:1px solid #000; width:200px; margin: 0 auto;"></div>
-                    <p><strong>Finalized By</strong></p>
-                    <p>{finalized_by.name if finalized_by else 'N/A'}</p>
-                    <p>{finalized_by.doctor_id if finalized_by else ''}</p>
-                </div>
+            <div style="margin-top: 80px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="width: 50%; text-align: center; vertical-align: top;">
+                            <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto;"></div>
+                            <p><strong>Verified By</strong></p>
+                            <p>{verified_by.name if verified_by else 'N/A'}</p>
+                            <p>{verified_by.doctor_id if verified_by else ''}</p>
+                        </td>
+                        <td style="width: 50%; text-align: center; vertical-align: top;">
+                            <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto;"></div>
+                            <p><strong>Finalized By</strong></p>
+                            <p>{finalized_by.name if finalized_by else 'N/A'}</p>
+                            <p>{finalized_by.doctor_id if finalized_by else ''}</p>
+                        </td>
+                    </tr>
+                </table>
             </div>
 
         </body>
