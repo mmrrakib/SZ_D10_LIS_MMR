@@ -28,91 +28,37 @@ from db import (
 
 
 class ReportPreviewWindow(QDialog):
-
-
     def __init__(self, result_id, parent=None):
-
-
         super().__init__(parent)
-
-
         self.result_id = result_id
-
-
         self.setWindowTitle("Print Preview")
 
-
-
-
-
-        # Set the window size and position based on the parent (main window)
-
-
+        # Window size and position
         if parent and hasattr(parent, 'main_window') and parent.main_window:
-
-
             self.setGeometry(parent.main_window.geometry())
-
-
             self.move(parent.main_window.frameGeometry().topLeft())
-
-
         else:
-
-
             self.setGeometry(100, 100, 800, 700)
 
-
-
-
-
         self.layout = QVBoxLayout()
-
-
         self.setLayout(self.layout)
 
-
-
-
-
         self.db_session = SessionLocal()
-
-
         self.result = get_result_by_id_with_patient_and_doctor(self.db_session, self.result_id)
 
-
-        
-
-
         if not self.result:
-
-
             QMessageBox.critical(self, "Error", "Result not found.")
-
-
             self.close()
-
-
             return
 
-
-
-
-
         self.report_viewer = QTextBrowser()
-
-
         self.report_viewer.setReadOnly(True)
-
-
         self.layout.addWidget(self.report_viewer)
 
-
-
-
-
+        # Generate report
         self.generate_report_html()
 
+        # Buttons
         self.print_button = QPushButton("Print Report")
         self.print_button.clicked.connect(self.print_report)
         self.layout.addWidget(self.print_button)
@@ -136,8 +82,6 @@ class ReportPreviewWindow(QDialog):
                 margin: 25px;
                 color: #000;
             }}
-
-            /* MAIN TITLE */
             .report-title {{
                 text-align: center;
                 font-size: 26px;
@@ -147,8 +91,6 @@ class ReportPreviewWindow(QDialog):
                 border: 1px solid #000;
                 margin-bottom: 20px;
             }}
-
-            /* SECTION HEADERS */
             .section-title {{
                 font-size: 18px;
                 font-weight: bold;
@@ -158,57 +100,39 @@ class ReportPreviewWindow(QDialog):
                 margin-top: 20px;
                 margin-bottom: 10px;
             }}
-
-            /* PATIENT INFO BOX */
             .box {{
                 border: 1px solid #000;
                 padding: 10px;
                 margin-bottom: 15px;
                 width: 100%;
             }}
-
             .patient-table {{
                 width: 100%;
                 border-collapse: collapse;
             }}
-
             .patient-table td {{
                 width: 33%;
                 padding: 5px;
             }}
-
             .label {{
                 font-weight: bold;
             }}
-
-            /* RESULT TABLE */
             .result-table-wrapper {{
                 width: 100%;
                 text-align: center;
             }}
-
             .result-table {{
-                width: 100%;
+                width: 80%;
                 border-collapse: collapse;
                 margin: 0 auto;
                 table-layout: fixed;
+                font-size: 16px;
             }}
-
-            .result-table th {{
-                background-color: #d9ecff;
+            .result-table th, .result-table td {{
                 border: 1px solid #000;
-                padding: 8px;
-                text-align: center;
-                font-weight: bold;
-            }}
-
-            .result-table td {{
-                border: 1px solid #000;
-                padding: 8px;
+                padding: 12px;
                 text-align: center;
             }}
-
-            /* INTERPRETATION */
             .interpretation {{
                 border: 1px solid #000;
                 padding: 10px;
@@ -216,12 +140,8 @@ class ReportPreviewWindow(QDialog):
             }}
         </style>
         </head>
-
         <body>
-
-            <div class="report-title">
-                Hemoglobin Electrophoresis Report
-            </div>
+            <div class="report-title">Hemoglobin Electrophoresis Report</div>
 
             <div class="box">
                 <table class="patient-table">
@@ -239,7 +159,6 @@ class ReportPreviewWindow(QDialog):
             </div>
 
             <div class="section-title">Test Result</div>
-
             <div class="result-table-wrapper">
                 <table class="result-table">
                     <thead>
@@ -273,24 +192,21 @@ class ReportPreviewWindow(QDialog):
                 2–3 months and is used for diagnosis and monitoring of diabetes mellitus.
             </div>
 
-            <!-- FOOTER : LEFT = VERIFIED , RIGHT = FINALIZED -->
-            <table style="width:100%; margin-top:90px; border-collapse:collapse;">
-                <tr>
-                    <td style="width:50%; text-align:left; vertical-align:top;">
-                        <div style="width:70%; border-top:1px solid #000; margin-top:40px;"></div>
-                        <p><strong>Verified By</strong></p>
-                        <p>{verified_by.name if verified_by else 'N/A'}</p>
-                        <p>{verified_by.doctor_id if verified_by else ''}</p>
-                    </td>
-
-                    <td style="width:50%; text-align:right; vertical-align:top;">
-                        <div style="width:70%; border-top:1px solid #000; margin-top:40px; margin-left:auto;"></div>
-                        <p><strong>Finalized By</strong></p>
-                        <p>{finalized_by.name if finalized_by else 'N/A'}</p>
-                        <p>{finalized_by.doctor_id if finalized_by else ''}</p>
-                    </td>
-                </tr>
-            </table>
+            <!-- FOOTER: VERIFIED & FINALIZED SIGNATURES -->
+            <div style="display:flex; justify-content: space-between; margin-top:80px;">
+                <div style="text-align: center;">
+                    <div style="border-top:1px solid #000; width:200px; margin: 0 auto;"></div>
+                    <p><strong>Verified By</strong></p>
+                    <p>{verified_by.name if verified_by else 'N/A'}</p>
+                    <p>{verified_by.doctor_id if verified_by else ''}</p>
+                </div>
+                <div style="text-align: center;">
+                    <div style="border-top:1px solid #000; width:200px; margin: 0 auto;"></div>
+                    <p><strong>Finalized By</strong></p>
+                    <p>{finalized_by.name if finalized_by else 'N/A'}</p>
+                    <p>{finalized_by.doctor_id if finalized_by else ''}</p>
+                </div>
+            </div>
 
         </body>
         </html>
@@ -298,48 +214,23 @@ class ReportPreviewWindow(QDialog):
 
         self.report_viewer.setHtml(html_content)
 
-
-
     def open_in_browser(self):
-        import webbrowser
-        import tempfile
-        import os
-
-        # Get the HTML content
         html_content = self.report_viewer.toHtml()
-
-        # Create a temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".html", mode="w", encoding="utf-8") as tmp_file:
             tmp_file.write(html_content)
             temp_path = tmp_file.name
-
-        # Open the file in the default web browser
         webbrowser.open_new_tab(f"file:///{temp_path}")
 
-        # Note: The temporary file will be deleted when the app closes or the Python process ends,
-        # unless deleted=False is used and then explicitly deleted later.
-        # For simplicity here, we rely on the OS or user to clean temp files, or delete it later.
-        # For a robust solution, consider a more managed temp file lifecycle.
-
     def print_report(self):
-
-
         printer = QPrinter(QPrinter.PrinterMode.HighResolution)
-
-
         print_dialog = QPrintDialog(printer, self)
-
-
         if print_dialog.exec() == QPrintDialog.DialogCode.Accepted:
-
-
             self.report_viewer.print(printer)
 
-
-
-
-
     def closeEvent(self, event):
+        self.db_session.close()
+        super().closeEvent(event)
+
 
 
         self.db_session.close()
