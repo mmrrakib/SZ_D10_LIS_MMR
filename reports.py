@@ -45,6 +45,13 @@ class ReportPreviewWindow(QDialog):
 
         self.db_session = SessionLocal()
         self.result = get_result_by_id_with_patient_and_doctor(self.db_session, self.result_id)
+        
+        # Fetch all results for the same sample_id to show peaks/fractions
+        self.all_results = []
+        if self.result:
+            self.all_results = self.db_session.query(ResultDetails)\
+                .filter(ResultDetails.sample_id == self.result.sample_id)\
+                .order_by(ResultDetails.id).all()
 
         if not self.result:
             QMessageBox.critical(self, "Error", "Result not found.")
@@ -55,14 +62,10 @@ class ReportPreviewWindow(QDialog):
         self.report_viewer.setReadOnly(True)
         self.layout.addWidget(self.report_viewer)
 
-        # Generate report
+        self.current_html = ""
         self.generate_report_html()
 
-        # Buttons
-        self.print_button = QPushButton("Print Report")
-        self.print_button.clicked.connect(self.print_report)
-        self.layout.addWidget(self.print_button)
-
+        # Button
         self.open_browser_button = QPushButton("Open in Browser")
         self.open_browser_button.clicked.connect(self.open_in_browser)
         self.layout.addWidget(self.open_browser_button)
@@ -73,163 +76,199 @@ class ReportPreviewWindow(QDialog):
         finalized_by = self.result.finalized_by_doctor
 
         html_content = f"""
-        <html>
-        <head>
-        <style>
-            body {{
-                font-family: Arial, Helvetica, sans-serif;
-                font-size: 13px;
-                margin: 25px;
-                color: #000;
-            }}
-            .report-title {{
-                text-align: center;
-                font-size: 26px;
-                font-weight: bold;
-                background-color: #d9ecff;
-                padding: 10px;
-                border: 1px solid #000;
-                margin-bottom: 20px;
-            }}
-            .section-title {{
-                font-size: 18px;
-                font-weight: bold;
-                background-color: #d9ecff;
-                padding: 6px 10px;
-                border: 1px solid #000;
-                margin-top: 20px;
-                margin-bottom: 10px;
-            }}
-            .box {{
-                border: 1px solid #000;
-                padding: 10px;
-                margin-bottom: 15px;
-                width: 100%;
-            }}
-            .patient-table {{
-                width: 100%;
-                border-collapse: collapse;
-            }}
-            .patient-table td {{
-                width: 33%;
-                padding: 5px;
-            }}
-            .label {{
-                font-weight: bold;
-            }}
-            .result-table-wrapper {{
-                width: 100%;
-                text-align: center;
-            }}
-            .result-table {{
-                width: 80%;
-                border-collapse: collapse;
-                margin: 0 auto;
-                table-layout: fixed;
-                font-size: 16px;
-            }}
-            .result-table th, .result-table td {{
-                border: 1px solid #000;
-                padding: 12px;
-                text-align: center;
-            }}
-            .interpretation {{
-                border: 1px solid #000;
-                padding: 10px;
-                width: 100%;
-            }}
-        </style>
-        </head>
-        <body>
-                        <div class="report-title">Lab Report</div>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Biochemistry Report</title>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #000;
+            font-size: 11px;
+        }}
+        .report-container {{
+            width: 800px;
+            margin: 0 auto;
+        }}
+        .header-section {{
+            border: 2px solid #000;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 15px;
+            text-align: center;
+        }}
+        .title {{
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }}
+        .patient-info-table {{
+            width: 100%;
+            border: 1px solid #000;
+            border-collapse: collapse;
+            margin: 10px auto;
+        }}
+        .patient-info-table td {{
+            padding: 8px;
+            vertical-align: top;
+            text-align: left;
+        }}
+        .label {{
+            font-weight: bold;
+        }}
+        .value {{
+            border-bottom: 1px solid #000;
+        }}
+        .hplc-note {{
+            text-align: center;
+            color: #0000CD;
+            font-size: 10px;
+            margin-top: 15px;
+        }}
+        .hb-conc {{
+            font-size: 14px;
+            font-weight: bold;
+            margin: 20px 0;
+            padding-left: 10px;
+        }}
+        .results-table {{
+            width: 95%;
+            border-collapse: collapse;
+            margin: 20px auto;
+        }}
+        .results-table th {{
+            border: 1px solid #000;
+            padding: 10px;
+            text-align: left;
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }}
+        .results-table td {{
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }}
+        .comments-section, .advice-section {{
+            margin: 20px 10px;
+            font-size: 13px;
+        }}
+        .section-title {{
+            font-weight: bold;
+            font-size: 15px;
+        }}
+        .footer-table {{
+            width: 100%;
+            margin-top: 50px;
+            border-collapse: collapse;
+        }}
+        .footer-table td {{
+            width: 50%;
+            vertical-align: top;
+            padding: 10px;
+        }}
+        .signature-line-box {{
+            border-top: 1px solid #000;
+            padding-top: 5px;
+            width: 180px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <div class="header-section">
+            <div class="title">BIOCHEMISTRY REPORT</div>
+            
+            <table class="patient-info-table">
+                <tr>
+                    <td width="35%">
+                        <div><span class="label">ID No :</span> <span class="value">{patient.patient_id if patient else 'N/A'}</span></div>
+                        <div style="margin-top:5px;"><span class="label">Name :</span> <span class="value">{patient.name if patient else 'N/A'}</span></div>
+                        <div style="margin-top:5px;"><span class="label">Ref By :</span> <span class="value">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+                    </td>
+                    <td width="35%">
+                        <div><span class="label">Bill On:</span> <span class="value">{self.result.date_time.strftime('%d/%m/%y %I:%M %p') if self.result.date_time else ''}</span></div>
+                        <div style="margin-top:5px;"><span class="label">Print on:</span> <span class="value">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+                        <div style="margin-top:5px;"><span class="label">Admission:</span> <span class="value">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+                    </td>
+                    <td width="30%">
+                        <div><span class="label">Age/Sex:</span> <span class="value">{patient.age if patient else 'N/A'} / {patient.gender if patient else 'N/A'}</span></div>
+                        <div style="margin-top:5px;"><span class="label">Specimen:</span> <span class="value">Blood</span></div>
+                        <div style="margin-top:5px;"><span class="label">Admission:</span> <span class="value">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+                    </td>
+                </tr>
+            </table>
 
-            <div class="box">
-                <table class="patient-table">
-                    <tr>
-                        <td><span class="label">Patient ID:</span> {patient.patient_id if patient else 'N/A'}</td>
-                        <td><span class="label">Name:</span> {patient.name if patient else 'N/A'}</td>
-                        <td><span class="label">Gender:</span> {patient.gender if patient else 'N/A'}</td>
-                    </tr>
-                    <tr>
-                        <td><span class="label">Age:</span> {patient.age if patient else 'N/A'}</td>
-                        <td><span class="label">Phone:</span> {patient.phone_number if patient else 'N/A'}</td>
-                        <td><span class="label">Sample ID:</span> {self.result.sample_id}</td>
-                    </tr>
-                </table>
+            <div class="hplc-note">
+                Estimations are carried out by fully automated System
             </div>
+        </div>
 
-            <div class="section-title">Test Result</div>
-            <div class="result-table-wrapper">
-                <table class="result-table">
-                    <thead>
-                        <tr>
-                            <th>Test Name</th>
-                            <th>Result</th>
-                            <th>Unit</th>
-                            <th>Reference Range</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>{self.result.test_name}</td>
-                            <td><strong>{self.result.test_result}</strong></td>
-                            <td>{self.result.unit}</td>
-                            <td>{self.result.reference_range}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <div class="hb-conc">
+            Result: {self.result.test_result} {self.result.unit if self.result.unit else ''}
+        </div>
 
-            <div class="section-title">Method</div>
-            <p>
-                Hemoglobin fractions were analyzed by electrophoresis using
-                an automated HbA1c analyzer.
-            </p>
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th width="40%">Test Name</th>
+                    <th width="20%">Result</th>
+                    <th width="40%">Ref. Values</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{self.result.test_name}</td>
+                    <td>{self.result.test_result} {self.result.unit if self.result.unit else ''}</td>
+                    <td>{self.result.reference_range}</td>
+                </tr>
+            </tbody>
+        </table>
 
-            <div class="section-title">Interpretation</div>
-            <div class="interpretation">
-                HbA1c reflects the average blood glucose level over the previous
-                2–3 months and is used for diagnosis and monitoring of diabetes mellitus.
-            </div>
+        <div class="comments-section">
+            <span class="section-title">Comments :</span> Consistent with patterns.
+        </div>
 
-            <!-- FOOTER: VERIFIED & FINALIZED SIGNATURES -->
-            <div style="margin-top: 80px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                        <td style="width: 50%; text-align: center; vertical-align: top;">
-                            <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto;"></div>
-                            <p><strong>Verified By</strong></p>
-                            <p>{verified_by.name if verified_by else 'N/A'}</p>
-                            <p>{verified_by.doctor_id if verified_by else ''}</p>
-                        </td>
-                        <td style="width: 50%; text-align: center; vertical-align: top;">
-                            <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto;"></div>
-                            <p><strong>Finalized By</strong></p>
-                            <p>{finalized_by.name if finalized_by else 'N/A'}</p>
-                            <p>{finalized_by.doctor_id if finalized_by else ''}</p>
-                        </td>
-                    </tr>
-                </table>
-            </div>
+        <div class="advice-section">
+            <span class="section-title">Advice :</span> Clinically correlate with other findings.
+        </div>
 
-        </body>
-        </html>
-        """
+        <table class="footer-table">
+            <tr>
+                <td align="center">
+                    <div style="height: 40px;"></div>
+                    <div class="signature-line-box" style="margin: 0 auto; text-align: center;">
+                        <div><strong>{verified_by.name if verified_by else 'N/A'}</strong></div>
+                        <div style="font-size: 10px;">{verified_by.designation if verified_by and verified_by.designation else ''}</div>
+                        <div><strong>Verified By</strong></div>
+                    </div>
+                </td>
+                <td align="right">
+                    <div style="height: 40px;"></div>
+                    <div class="signature-line-box" style="text-align: center; margin-left: auto;">
+                        <div><strong>{finalized_by.name if finalized_by else 'N/A'}</strong></div>
+                        <div style="font-size: 10px;">{finalized_by.designation if finalized_by and finalized_by.designation else ''}</div>
+                        <div><strong>Finalized By</strong></div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
+"""
 
+        self.current_html = html_content
         self.report_viewer.setHtml(html_content)
 
     def open_in_browser(self):
-        html_content = self.report_viewer.toHtml()
+        if not self.current_html:
+            return
         with tempfile.NamedTemporaryFile(delete=False, suffix=".html", mode="w", encoding="utf-8") as tmp_file:
-            tmp_file.write(html_content)
+            tmp_file.write(self.current_html)
             temp_path = tmp_file.name
         webbrowser.open_new_tab(f"file:///{temp_path}")
-
-    def print_report(self):
-        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
-        print_dialog = QPrintDialog(printer, self)
-        if print_dialog.exec() == QPrintDialog.DialogCode.Accepted:
-            self.report_viewer.print(printer)
 
     def closeEvent(self, event):
         self.db_session.close()

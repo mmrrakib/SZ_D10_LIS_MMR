@@ -48,8 +48,14 @@ STYLE_SHEET = """
         border-radius: 5px;
     }
     QFrame#header_frame {
-        background-color: transparent; /* No background for header frames */
-        border: none; /* No border for header frames */
+        background-color: #E0E0E0; /* Light Gray background for tabs */
+        border: 1px solid #BCBCBC;
+        border-bottom: 3px solid #A0A0A0; /* Defined bottom border */
+        border-top-left-radius: 5px;
+        border-top-right-radius: 5px;
+        border-bottom-left-radius: 0px;
+        border-bottom-right-radius: 0px;
+        margin-bottom: 0px;
     }
     QTreeWidget {
         border: 1px solid #4682B4; /* SteelBlue Border */
